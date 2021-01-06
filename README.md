@@ -20,7 +20,7 @@ If you are on windows (and possibly mac), you should remove that file or execute
 You can activate the environment by using the following command: 
 
 ```bash
-source activate snorkeling_full_text
+conda activate snorkeling_full_text
 ```  
 
 ## License
