@@ -285,6 +285,7 @@ def parse_document(path_map, fieldnames, data_queue):
 
         except Exception as e:
             print(f"This was an exception {e}")
+
             # Do nothing but tell the queue that the task is done
             data_queue.task_done()
 
@@ -325,7 +326,7 @@ def supply_documents(doc_type, batch_iterator, data_queue):
             finally:
                 document.clear()
     else:
-        raise ("Please provide either full or abstract for doc type")
+        raise ValueError("Please provide either full or abstract for doc type")
 
 
 # Sliding window obtained from:
