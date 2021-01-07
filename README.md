@@ -6,7 +6,7 @@ The goal here is to see if full text will improve distant supervision performanc
 
 Snorkeling-full-text uses [conda](http://conda.pydata.org/docs/intro.html) as a python package manager.
 Before moving on to the instructions below, please make sure to have it installed. 
-[Download conda here!!](https://www.continuum.io/downloads)
+[Download conda here!!](https://docs.conda.io/en/latest/miniconda.html)
   
 Once everything has been installed, type following command in the terminal: 
 
