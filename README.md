@@ -1,6 +1,12 @@
-# snorkeling-full-text
+# Snorkeling-Full-Text
+
 This is an upgraded version of the original [snorkeling project](https://github.com/greenelab/snorkeling). 
 The goal here is to see if full text will improve distant supervision performance.
+
+## Before You Begin
+
+Please make sure you have executed the pubtator repository first as the code in the notebook requires pubtator to have been executed.
+First run `git clone https://github.com/greenelab/pubtator` in the same directory that will hold this repository, then follow the instructions that are located in [Pubtator's repository](https://github.com/greenelab/pubtator).
 
 ## Installation Instructions
 
