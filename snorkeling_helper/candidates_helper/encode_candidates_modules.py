@@ -9,6 +9,18 @@ def encode_lemmas(
     entity_one="DISEASE_ENTITY",
     entity_two="GENE_ENTITY",
 ):
+    """
+    This function is designed to provide index numbers for each provided lemma.
+    A lemma is the root from of regular english terms e.g. walked -> walk  or are -> be.
+    Reason to run this function is to provide a mapping of lemmas to specific rows within the word2vec embedding matrix the discriminator model will use.
+        parameters:
+            candidate_df - the candidate dataframe that contains lemma array string
+            stopwords - the stopwords to be removed before processing
+            word_mapper - the lemma to word embedding matrix row
+            entity_fieldnames - the field names that specify the start and stop of entities
+            entity_one - the entity type
+            entity_two - the entity type
+    """
 
     embedded_sentences = []
     for idx, row in tqdm.tqdm(candidate_df.iterrows()):

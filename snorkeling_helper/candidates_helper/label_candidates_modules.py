@@ -1,4 +1,10 @@
 def char_to_word(row):
+    """
+    This function is designed to convert character indicies into word indicies.
+    Pubmed Central reports entities as individual character indicies, but it is easier to use word incidies
+        parameters:
+            row - the individual dataframe row to be converted
+    """
     char_word_mapper = [
         (idx, int(tok)) for idx, tok in enumerate(row["char_offsets"].split("|"))
     ]

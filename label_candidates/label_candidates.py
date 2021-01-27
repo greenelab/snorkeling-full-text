@@ -15,6 +15,8 @@
 
 # # Label the Candidate Sentences
 
+# This notebook is designed to run labeling functions over sentences from Pubmed Central abstracts and full text. These functions are the first step in providing a means to automatically label data instead of the traditional manual process. We are testing the hypothesis that full text provides better performance than using abstracts alone.
+
 # +
 # %load_ext autoreload
 # %autoreload 2
@@ -27,6 +29,7 @@ from snorkel.labeling import PandasLFApplier
 import pandas as pd
 
 from snorkeling_helper.label_functions.disease_gene import DaG
+from snorkeling_helper.candidate_helper.label_candidates_modules import char_to_word
 # -
 
 username = "danich1"
@@ -43,6 +46,8 @@ candidates_df = pd.read_csv(
 candidates_df.head()
 
 # ## Train Candidates Abstract Only
+
+# Run label functions on abstract sentences that were not previously labeled.
 
 # +
 candidates = ",".join(map(str, candidates_df.document_id.tolist()))
@@ -115,6 +120,8 @@ train_lfs_df.head()
 
 # ## Train Full Text Only
 
+# Run label functions on full text sentences that were not previously labeled.
+
 # +
 candidates = ",".join(map(str, candidates_df.document_id.tolist()))
 sql = f"""
@@ -158,39 +165,12 @@ train_lfs_df.head()
 
 # ## Dev Set
 
+# Run label functions on previously annotated sentences
+
 annotated_df = pd.read_csv(
     "../annotation_conversion/output/mapped_disease_gene_candidates.tsv", sep="\t"
 )
 annotated_df.head()
-
-
-def char_to_word(row):
-    char_word_mapper = [
-        (idx, int(tok)) for idx, tok in enumerate(row["char_offsets"].split("|"))
-    ]
-    gene_end = -1
-    gene_start = -1
-    disease_end = -1
-    disease_start = -1
-    for word in char_word_mapper:
-        if word[1] >= row["disease_start"] and word[1] <= row["disease_end"]:
-            if word[1] == row["disease_start"]:
-                disease_start = word[0]
-            else:
-                disease_end = word[0]
-        if word[1] >= row["gene_start"] and word[1] <= row["gene_end"]:
-            if word[1] == row["gene_start"]:
-                gene_start = word[0]
-            else:
-                gene_end = word[0]
-
-    return (
-        disease_start,
-        disease_end if disease_end != -1 else disease_start + 1,
-        gene_start,
-        gene_end if gene_end != -1 else gene_start + 1,
-    )
-
 
 fixed_map_df = pd.DataFrame.from_dict(
     dict(

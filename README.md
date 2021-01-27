@@ -22,6 +22,7 @@ bash install.sh
 _Note_:
 There is a bash command within the install.sh that only works on unix systems.
 If you are on windows (and possibly mac), you should remove that file or execute each command individually.
+Alternatively for windows users please refer to these [installation instructions](https://itsfoss.com/install-bash-on-windows/) to enable bash on windows.
 
 You can activate the environment by using the following command:
 
