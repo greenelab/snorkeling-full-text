@@ -26,12 +26,13 @@ dependencies:
     - nltk==3.2.4
     - numpy==1.17.2
     - pandas==1.2.0
-    - pre_commit==2.9.3
     - plotnine==0.7.1
+    - pre_commit==2.9.3
+    - psycopg2==2.8.6
     - requests==2.25.1
     - seaborn==0.11.1
     - scikit-learn==0.21.3
-    - scipy==1.3.1 
+    - scipy==1.3.1
     - six==1.12.0
     - snorkel==0.9.6
     - spacy==2.3.5
