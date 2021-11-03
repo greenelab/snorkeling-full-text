@@ -13,26 +13,18 @@
 #     name: conda-env-snorkeling_full_text-py
 # ---
 
-# # Does resampling experiment help with predicting DaG sentences?
+# # Does resampling experiment help with predicting CbG sentences?
 
 # +
 from itertools import product
 from pathlib import Path
-import re
 import warnings
 
-import numpy as np
 import pandas as pd
-import plotnine as p9
-import scipy.stats
+import plydata as ply
 from sqlalchemy import create_engine
-from snorkel.labeling.analysis import LFAnalysis
-from snorkel.labeling.model import LabelModel
-from sklearn.metrics import roc_curve, precision_recall_curve, auc
-import torch
-import torch.nn.functional as F
-import tqdm
 
+from snorkel.labeling.analysis import LFAnalysis
 from snorkeling_helper.generative_model_helper import (
     sample_lfs,
     train_generative_label_function_sampler,
@@ -51,9 +43,13 @@ conn = create_engine(database_str)
 
 # ## Load the data
 
+label_candidates_dir = Path("../label_candidates/output")
+notebook_output_dir = Path("output/CtD")
+
 # +
 L_abstracts = pd.read_csv(
-    "../label_candidates/output/dg_abstract_train_candidates_resampling.tsv", sep="\t"
+    str(label_candidates_dir / Path("cg_abstract_train_candidates_resampling.tsv")),
+    sep="\t",
 )
 
 print(L_abstracts.shape)
@@ -61,7 +57,8 @@ L_abstracts.head().T
 
 # +
 L_full_text = pd.read_csv(
-    "../label_candidates/output/dg_full_text_train_candidates_resampling.tsv", sep="\t"
+    str(label_candidates_dir / Path("cg_full_text_train_candidates_resampling.tsv")),
+    sep="\t",
 )
 
 print(L_full_text.shape)
@@ -69,58 +66,58 @@ L_full_text.head().T
 # -
 
 L_dev = pd.read_csv(
-    "../label_candidates/output/dg_dev_test_candidates_resampling.tsv", sep="\t"
-).query("split==1")
+    str(label_candidates_dir / Path("cg_dev_test_candidates_resampling.tsv")), sep="\t"
+) >> ply.query("split==7")
 print(L_dev.shape)
 L_dev.head().T
 
-# ## Resort the Candidates Based on Abstract
+# ## Restort Based on the Candidate Abstracts
 
 # Grab the document ids for resampling
 sql = """
-select dg_candidates.sentence_id, document_id, dg_candidates.candidate_id from sentence
+select cg_candidates.sentence_id, document_id, cg_candidates.candidate_id from sentence
 inner join (
-  select candidate.candidate_id, disease_gene.sentence_id from disease_gene
-  inner join candidate on candidate.candidate_id=disease_gene.candidate_id
-  ) as dg_candidates
-on sentence.sentence_id = dg_candidates.sentence_id
+  select candidate.candidate_id, compound_gene.sentence_id from compound_gene
+  inner join candidate on candidate.candidate_id=compound_gene.candidate_id
+  ) as cg_candidates
+on sentence.sentence_id = cg_candidates.sentence_id
 """
 candidate_doc_df = pd.read_sql(sql, database_str)
 candidate_doc_df.head()
 
-filtered_candidate_id = candidate_doc_df.query(
-    f"document_id in {list(L_dev.document_id.astype(int).unique())}"
-).candidate_id.tolist()
+# +
+dev_test_ids = (
+    L_dev >> ply.select("document_id") >> ply.distinct() >> ply.pull("document_id")
+)
 
-if not Path("output/dag_dataset_mapper.tsv").exists():
-    np.random.seed(100)
-    sorted_train_df = (
-        candidate_doc_df.query(
-            f"document_id not in {list(L_dev.document_id.astype(int).unique())}"
-        )[["document_id"]]
-        .drop_duplicates()
-        .assign(
-            dataset=lambda x: np.random.choice(
-                ["train", "tune", "test"], x.shape[0], p=[0.7, 0.2, 0.1]
-            )
-        )
-    )
-    sorted_train_df.to_csv("output/dag_dataset_mapper.tsv", sep="\t", index=False)
-else:
-    sorted_train_df = pd.read_csv("output/dag_dataset_mapper.tsv", sep="\t")
+filtered_candidate_id = (
+    candidate_doc_df
+    >> ply.query(f"document_id in {list(dev_test_ids)}")
+    >> ply.pull("candidate_id")
+)
+# -
+
+sorted_train_df = pd.read_csv(
+    str(notebook_output_dir / Path("cbg_dataset_mapper.tsv")), sep="\t"
+)
 sorted_train_df.head()
 
 trained_documents = (
-    sorted_train_df.merge(candidate_doc_df, on="document_id")
-    .query("dataset=='train'")
-    .candidate_id.tolist()
+    sorted_train_df
+    >> ply.inner_join(candidate_doc_df, on="document_id")
+    >> ply.query("dataset=='train'")
+    >> ply.pull("candidate_id")
 )
 
-filtered_L_abstracts = L_abstracts.query(f"candidate_id in {trained_documents}")
+filtered_L_abstracts = L_abstracts >> ply.query(
+    f"candidate_id in {list(trained_documents)}"
+)
 print(filtered_L_abstracts.shape)
 filtered_L_abstracts.head()
 
-filtered_L_full_text = L_full_text.query(f"candidate_id in {trained_documents}")
+filtered_L_full_text = L_full_text >> ply.query(
+    f"candidate_id in {list(trained_documents)}"
+)
 print(filtered_L_full_text.shape)
 filtered_L_full_text.head()
 
@@ -135,20 +132,23 @@ grid = list(product(epochs_grid, l2_param_grid, lr_grid))
 # # Abstracts
 
 # +
-analysis_module = LFAnalysis(filtered_L_abstracts.drop(["candidate_id"], axis=1))
+analysis_module = LFAnalysis(
+    filtered_L_abstracts >> ply.select("candidate_id", drop=True)
+)
 
 abstract_lf_summary = analysis_module.lf_summary()
-abstract_lf_summary.index = filtered_L_abstracts.drop(
-    ["candidate_id"], axis=1
+abstract_lf_summary.index = (
+    filtered_L_abstracts >> ply.select("candidate_id", drop=True)
 ).columns.tolist()
+
 abstract_lf_summary
 # -
 
-# # Set up For Resampling
+# # Set up fields for resampling
 
-lf_columns_base = list(L_abstracts.columns[0:5])
+lf_columns_base = list(L_abstracts.columns[0:9])
 candidate_id_field = list(L_abstracts.columns[-1:])
-dev_column_base = ["split", "curated_dsh", "document_id"]
+dev_column_base = ["split", "curated_cbg", "document_id"]
 data_columns = []
 
 # # Abstracts
@@ -156,19 +156,19 @@ data_columns = []
 # ## Baseline
 
 # +
-dag_start = 0
-dag_end = 5
+cbg_start = 0
+cbg_end = 9
 number_of_samples = 1
 
-dag_lf_range = range(dag_start, dag_end)
-size_of_samples = [len(dag_lf_range)]
+cbg_lf_range = range(cbg_start, cbg_end)
+size_of_samples = [len(cbg_lf_range)]
 # -
 
 sampled_lfs_dict = {
     sample_size: (
         sample_lfs(
-            list(dag_lf_range),
-            len(list(dag_lf_range)),
+            list(cbg_lf_range),
+            len(list(cbg_lf_range)),
             sample_size,
             number_of_samples,
             random_state=100,
@@ -185,17 +185,19 @@ data_columns += train_generative_label_function_sampler(
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/dag_training_marginals_baseline.tsv",
-    curated_label="curated_dsh",
-    entity_label="DaG",
+    marginals_df_file=str(
+        notebook_output_dir / Path("cbg_training_marginals_baseline.tsv")
+    ),
+    curated_label="curated_cbg",
+    entity_label="CbG",
     data_source="abstract",
 )
 
 # ## DaG
 
 # +
-dag_start = 5
-dag_end = 34
+dag_start = 9
+dag_end = 38
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, dag_end - dag_start]
@@ -224,8 +226,10 @@ data_columns += train_generative_label_function_sampler(
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/dag_predicts_dag_training_marginals.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("dag_predicts_cbg_training_marginals.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="DaG",
     data_source="abstract",
 )
@@ -233,8 +237,8 @@ data_columns += train_generative_label_function_sampler(
 # ## CtD
 
 # +
-ctd_start = 34
-ctd_end = 56
+ctd_start = 38
+ctd_end = 60
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, ctd_end - ctd_start]
@@ -263,8 +267,10 @@ data_columns += train_generative_label_function_sampler(
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/ctd_predicts_dag_training_marginals.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("ctd_predicts_cbg_training_marginals.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="CtD",
     data_source="abstract",
 )
@@ -272,8 +278,8 @@ data_columns += train_generative_label_function_sampler(
 # ## CbG
 
 # +
-cbg_start = 56
-cbg_end = 76
+cbg_start = 60
+cbg_end = 80
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, cbg_end - cbg_start]
@@ -302,8 +308,10 @@ data_columns += train_generative_label_function_sampler(
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/cbg_predicts_dag_training_marginals.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("cbg_predicts_cbg_training_marginals.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="CbG",
     data_source="abstract",
 )
@@ -311,8 +319,8 @@ data_columns += train_generative_label_function_sampler(
 # ## GiG
 
 # +
-gig_start = 76
-gig_end = 104
+gig_start = 80
+gig_end = 108
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, gig_end - gig_start]
@@ -341,8 +349,10 @@ data_columns += train_generative_label_function_sampler(
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/gig_predicts_dag_training_marginals.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("gig_predicts_cbg_training_marginals.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="GiG",
     data_source="abstract",
 )
@@ -352,8 +362,8 @@ data_columns += train_generative_label_function_sampler(
 # ## DaG
 
 # +
-dag_start = 5
-dag_end = 24
+dag_start = 9
+dag_end = 38
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, dag_end - dag_start]
@@ -375,15 +385,17 @@ sampled_lfs_dict = {
 }
 
 data_columns += train_generative_label_function_sampler(
-    L_full_text,
+    filtered_L_full_text,
     L_dev,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/dag_predicts_dag_training_marginals_full_text.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("dag_predicts_cbg_training_marginals_full_text.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="DaG",
     data_source="full_text",
 )
@@ -391,8 +403,8 @@ data_columns += train_generative_label_function_sampler(
 # ## CtD
 
 # +
-ctd_start = 34
-ctd_end = 56
+ctd_start = 38
+ctd_end = 60
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, ctd_end - ctd_start]
@@ -414,15 +426,17 @@ sampled_lfs_dict = {
 }
 
 data_columns += train_generative_label_function_sampler(
-    L_full_text,
+    filtered_L_full_text,
     L_dev,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/ctd_predicts_dag_training_marginals_full_text.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("ctd_predicts_cbg_training_marginals_full_text.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="CtD",
     data_source="full_text",
 )
@@ -430,8 +444,8 @@ data_columns += train_generative_label_function_sampler(
 # ## CbG
 
 # +
-cbg_start = 56
-cbg_end = 76
+cbg_start = 60
+cbg_end = 80
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, cbg_end - cbg_start]
@@ -453,15 +467,17 @@ sampled_lfs_dict = {
 }
 
 data_columns += train_generative_label_function_sampler(
-    L_full_text,
+    filtered_L_full_text,
     L_dev,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/cbg_predicts_dag_training_marginals_full_text.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("cbg_predicts_cbg_training_marginals_full_text.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="CbG",
     data_source="full_text",
 )
@@ -469,8 +485,8 @@ data_columns += train_generative_label_function_sampler(
 # ## GiG
 
 # +
-gig_start = 76
-gig_end = 104
+gig_start = 80
+gig_end = 108
 
 # Spaced out number of sampels including total
 size_of_samples = [1, 6, 11, 16, gig_end - gig_start]
@@ -492,15 +508,17 @@ sampled_lfs_dict = {
 }
 
 data_columns += train_generative_label_function_sampler(
-    L_full_text,
+    filtered_L_full_text,
     L_dev,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
     candidate_id_field=candidate_id_field,
     dev_column_base=dev_column_base,
     search_grid=grid,
-    marginals_df_file="output/DaG/gig_predicts_dag_training_marginals_full_text.tsv",
-    curated_label="curated_dsh",
+    marginals_df_file=str(
+        notebook_output_dir / Path("gig_predicts_cbg_training_marginals_full_text.tsv")
+    ),
+    curated_label="curated_cbg",
     entity_label="GiG",
     data_source="full_text",
 )
@@ -510,4 +528,12 @@ data_columns += train_generative_label_function_sampler(
 performance_df = pd.DataFrame.from_records(data_columns)
 performance_df
 
-performance_df.to_csv("output/performance/DaG_performance.tsv", index=False, sep="\t")
+(
+    performance_df
+    >> ply.call(
+        "to_csv",
+        str(Path("output/performance") / Path("CbG_performance.tsv")),
+        index=False,
+        sep="\t",
+    )
+)
