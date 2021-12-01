@@ -147,7 +147,7 @@ abstract_lf_summary
 
 # # Set up fields for resampling
 
-lf_columns_base = list(L_abstracts.columns[0:5])
+lf_columns_base = list(L_abstracts.columns[0:2])
 candidate_id_field = list(L_abstracts.columns[-1:])
 dev_column_base = ["split", "curated_ctd", "document_id"]
 data_columns = []
