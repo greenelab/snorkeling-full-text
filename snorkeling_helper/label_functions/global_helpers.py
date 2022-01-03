@@ -68,11 +68,9 @@ def generate_dep_path(c):
             ]
         )
 
-    except nx.NetworkXNoPath as e:
-        print(e)
+    except nx.NetworkXNoPath:
         return ""
-    except nx.NodeNotFound as e:
-        print(e)
+    except nx.NodeNotFound:
         return ""
 
 

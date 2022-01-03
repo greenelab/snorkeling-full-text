@@ -3,19 +3,22 @@ from ..global_helpers import (
     ABSTAIN,
     NEGATIVE,
     POSITIVE,
-    OrderedDict,
-    pathlib,
-    re,
-    pd,
     ltp,
-    labeling_function,
     create_dep_mapper,
     match_dep_path,
     get_members,
     get_tagged_text,
     get_text_in_windows,
 )
+from collections import OrderedDict
+import pathlib
+
 import numpy as np
+import pandas as pd
+import re
+
+
+from snorkel.labeling import labeling_function
 
 """
 DISTANT SUPERVISION
