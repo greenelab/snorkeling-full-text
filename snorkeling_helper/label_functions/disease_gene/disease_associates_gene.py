@@ -3,17 +3,22 @@ from ..global_helpers import (
     ABSTAIN,
     NEGATIVE,
     POSITIVE,
-    OrderedDict,
-    pathlib,
-    re,
-    pd,
     ltp,
-    labeling_function,
+    create_dep_mapper,
+    match_dep_path,
+    get_members,
     get_tagged_text,
-    get_tokens_between,
-    get_token_windows
+    get_text_in_windows,
 )
+from collections import OrderedDict
+import pathlib
+
 import numpy as np
+import pandas as pd
+import re
+
+
+from snorkel.labeling import labeling_function
 
 """
 DISTANT SUPERVISION
@@ -23,6 +28,7 @@ path = (
     .joinpath("../../knowledge_bases/disease_associates_gene.tsv.xz")
     .resolve()
 )
+print(path)
 pair_df = pd.read_csv(path, dtype={"sources": str}, sep="\t")
 knowledge_base = set()
 for row in pair_df.itertuples():
@@ -489,38 +495,6 @@ context_change_keywords = {
 }
 
 
-def get_text_in_windows(c):
-    between_phrases = " ".join(
-        get_tokens_between(
-            word_array=c.word,
-            entity_one_start=c.disease_start,
-            entity_one_end=c.disease_end,
-            entity_two_start=c.gene_start,
-            entity_two_end=c.gene_end,
-        )
-    )
-
-    gene_left_window, gene_right_window = get_token_windows(
-        word_array=c.word,
-        entity_offset_start=c.gene_start,
-        entity_offset_end=c.gene_end,
-        window_size=10,
-    )
-
-    disease_left_window, disease_right_window = get_token_windows(
-        word_array=c.word,
-        entity_offset_start=c.disease_start,
-        entity_offset_end=c.disease_end,
-        window_size=10,
-    )
-
-    return {
-        "text_between": between_phrases,
-        "left_window": (disease_left_window, gene_left_window),
-        "right_window": (disease_right_window, gene_right_window),
-    }
-
-
 @labeling_function()
 def LF_DG_IS_BIOMARKER(c):
     """
@@ -744,9 +718,14 @@ def LF_DG_DIAGNOSIS(c):
     This label function is designed to search for words that imply a patient diagnosis
     which will provide evidence for possible disease gene association.
     """
+    column_members = get_members(c)
     window_text = get_text_in_windows(c)
     tagged_text = get_tagged_text(
-        c.word, c.disease_start, c.disease_end, c.gene_start, c.gene_end
+        c.word,
+        c[column_members[0]],
+        c[column_members[1]],
+        c[column_members[2]],
+        c[column_members[3]],
     )
 
     if any(
@@ -778,8 +757,13 @@ def LF_DG_PATIENT_WITH(c):
     """
     This label function looks for the phrase "  with" disease.
     """
+    column_members = get_members(c)
     tagged_text = get_tagged_text(
-        c.word, c.disease_start, c.disease_end, c.gene_start, c.gene_end
+        c.word,
+        c[column_members[0]],
+        c[column_members[1]],
+        c[column_members[2]],
+        c[column_members[3]],
     )
 
     if re.search(r"patient(s)? with.{1,200}{{A}}", tagged_text, flags=re.I):
@@ -794,8 +778,13 @@ def LF_DG_CONCLUSION_TITLE(c):
     This label function searches for the word conclusion at the beginning of the sentence.
     Some abstracts are written in this format.
     """
+    column_members = get_members(c)
     tagged_text = get_tagged_text(
-        c.word, c.disease_start, c.disease_end, c.gene_start, c.gene_end
+        c.word,
+        c[column_members[0]],
+        c[column_members[1]],
+        c[column_members[2]],
+        c[column_members[3]],
     )
 
     if "CONCLUSION:" in tagged_text or "concluded" in tagged_text:
@@ -921,67 +910,91 @@ path = (
     .joinpath("../../dependency_cluster/disease_gene_bicluster_results.tsv.xz")
     .resolve()
 )
-bicluster_dep_df = pd.read_csv(path, sep="\t")
-causal_mutations_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("U>0")[["pubmed_id", "sentence_num"]].values
-    ]
+dg_bicluster_dep_df = pd.read_csv(path, sep="\t")
+dg_cat_codes = ["U", "Ud", "D", "J", "Te", "Y", "G", "Md", "X", "L"]
+dg_dep_path_mapper = create_dep_mapper(dg_bicluster_dep_df, dg_cat_codes)
+
+"""
+causal_mutations_base = (
+    bicluster_dep_df
+    .query("U>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-mutations_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("Ud>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+mutations_base = (
+    bicluster_dep_df
+    .query("Ud>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-drug_targets_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("D>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+drug_targets_base = (
+    bicluster_dep_df
+    .query("D>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-pathogenesis_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("J>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+pathogenesis_base = (
+    bicluster_dep_df
+    .query("J>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-therapeutic_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("Te>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+therapeutic_base = (
+    bicluster_dep_df
+    .query("Te>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-polymorphisms_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("Y>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+polymorphisms_base = (
+    bicluster_dep_df
+    .query("Y>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-progression_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("G>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+progression_base = (
+    bicluster_dep_df
+    .query("G>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-biomarkers_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("Md>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+biomarkers_base = (
+    bicluster_dep_df
+    .query("Md>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-overexpression_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("X>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+overexpression_base = (
+    bicluster_dep_df
+    .query("X>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
-regulation_base = set(
-    [
-        tuple(x)
-        for x in bicluster_dep_df.query("L>0")[["pubmed_id", "sentence_num"]].values
-    ]
+
+regulation_base = (
+    bicluster_dep_df
+    .query("L>0")
+    .dep_path
+    .apply(lambda x: extract_nodes(x.split(" ")))
+    .values
 )
+"""
 
 
 @labeling_function()
@@ -990,11 +1003,7 @@ def LF_DG_BICLUSTER_CASUAL_MUTATIONS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in causal_mutations_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "U", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1003,11 +1012,7 @@ def LF_DG_BICLUSTER_MUTATIONS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in mutations_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "Ud", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1016,11 +1021,7 @@ def LF_DG_BICLUSTER_DRUG_TARGETS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in drug_targets_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "D", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1029,11 +1030,7 @@ def LF_DG_BICLUSTER_PATHOGENESIS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in pathogenesis_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "J", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1042,11 +1039,7 @@ def LF_DG_BICLUSTER_THERAPEUTIC(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in therapeutic_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "Te", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1055,11 +1048,7 @@ def LF_DG_BICLUSTER_POLYMORPHISMS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in polymorphisms_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "Y", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1068,11 +1057,7 @@ def LF_DG_BICLUSTER_PROGRESSION(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in progression_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "G", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1081,11 +1066,7 @@ def LF_DG_BICLUSTER_BIOMARKERS(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in biomarkers_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "Md", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1094,11 +1075,7 @@ def LF_DG_BICLUSTER_OVEREXPRESSION(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in overexpression_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "X", POSITIVE, ABSTAIN)
 
 
 @labeling_function()
@@ -1107,11 +1084,7 @@ def LF_DG_BICLUSTER_REGULATION(c):
     This label function uses the bicluster data located in the
     A global network of biomedical relationships
     """
-    sen_pos = c.get_parent().position
-    pubmed_id = int(c.get_parent().document.name)
-    if (pubmed_id, sen_pos) in regulation_base:
-        return POSITIVE
-    return ABSTAIN
+    return match_dep_path(c.dep_path, dg_dep_path_mapper, "L", POSITIVE, ABSTAIN)
 
 
 """
