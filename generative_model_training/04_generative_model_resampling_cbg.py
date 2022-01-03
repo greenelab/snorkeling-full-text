@@ -16,10 +16,10 @@
 # # Does resampling experiment help with predicting CbG sentences?
 
 # +
-from itertools import product
 from pathlib import Path
 import warnings
 
+import numpy as np
 import pandas as pd
 import plydata as ply
 from sqlalchemy import create_engine
@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from snorkel.labeling.analysis import LFAnalysis
 from snorkeling_helper.generative_model_helper import (
     sample_lfs,
-    train_generative_label_function_sampler,
+    run_generative_label_function_sampler,
 )
 
 warnings.filterwarnings("ignore")
@@ -44,7 +44,7 @@ conn = create_engine(database_str)
 # ## Load the data
 
 label_candidates_dir = Path("../label_candidates/output")
-notebook_output_dir = Path("output/CtD")
+notebook_output_dir = Path("output/CbG")
 
 # +
 L_abstracts = pd.read_csv(
@@ -70,6 +70,12 @@ L_dev = pd.read_csv(
 ) >> ply.query("split==7")
 print(L_dev.shape)
 L_dev.head().T
+
+L_test = pd.read_csv(
+    str(label_candidates_dir / Path("cg_dev_test_candidates_resampling.tsv")), sep="\t"
+) >> ply.query("split==8")
+print(L_test.shape)
+L_test.head().T
 
 # ## Restort Based on the Candidate Abstracts
 
@@ -124,10 +130,12 @@ filtered_L_full_text.head()
 # ## Construct the Grid Search
 
 # Global Grid
-epochs_grid = [100]
-l2_param_grid = [0.75]
+epochs_grid = [250]
+l2_param_grid = np.linspace(0.01, 5, num=5)
 lr_grid = [1e-3]
-grid = list(product(epochs_grid, l2_param_grid, lr_grid))
+grid = list(
+    zip(epochs_grid * len(l2_param_grid), l2_param_grid, lr_grid * len(l2_param_grid))
+)
 
 # # Abstracts
 
@@ -147,8 +155,6 @@ abstract_lf_summary
 # # Set up fields for resampling
 
 lf_columns_base = list(L_abstracts.columns[0:9])
-candidate_id_field = list(L_abstracts.columns[-1:])
-dev_column_base = ["split", "curated_cbg", "document_id"]
 data_columns = []
 
 # # Abstracts
@@ -177,19 +183,18 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
+    grid_param=grid,
     marginals_df_file=str(
         notebook_output_dir / Path("cbg_training_marginals_baseline.tsv")
     ),
     curated_label="curated_cbg",
-    entity_label="CbG",
+    entity_label="CbG_baseline",
     data_source="abstract",
 )
 
@@ -218,17 +223,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("dag_predicts_cbg_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="DaG",
     data_source="abstract",
@@ -259,17 +261,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("ctd_predicts_cbg_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="CtD",
     data_source="abstract",
@@ -300,14 +299,13 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
+    grid_param=grid,
     marginals_df_file=str(
         notebook_output_dir / Path("cbg_predicts_cbg_training_marginals.tsv")
     ),
@@ -341,17 +339,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("gig_predicts_cbg_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="GiG",
     data_source="abstract",
@@ -384,17 +379,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_full_text,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("dag_predicts_cbg_training_marginals_full_text.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="DaG",
     data_source="full_text",
@@ -425,17 +417,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_full_text,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("ctd_predicts_cbg_training_marginals_full_text.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="CtD",
     data_source="full_text",
@@ -466,17 +455,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_full_text,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("cbg_predicts_cbg_training_marginals_full_text.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="CbG",
     data_source="full_text",
@@ -507,17 +493,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_full_text,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("gig_predicts_cbg_training_marginals_full_text.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_cbg",
     entity_label="GiG",
     data_source="full_text",

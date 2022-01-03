@@ -16,10 +16,10 @@
 # # Does resampling experiment help with predicting GiG sentences?
 
 # +
-from itertools import product
 from pathlib import Path
 import warnings
 
+import numpy as np
 import pandas as pd
 import plydata as ply
 from sqlalchemy import create_engine
@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from snorkel.labeling.analysis import LFAnalysis
 from snorkeling_helper.generative_model_helper import (
     sample_lfs,
-    train_generative_label_function_sampler,
+    run_generative_label_function_sampler,
 )
 
 warnings.filterwarnings("ignore")
@@ -61,6 +61,12 @@ L_dev = pd.read_csv(
 ) >> ply.query("split==4")
 print(L_dev.shape)
 L_dev.head().T
+
+L_test = pd.read_csv(
+    str(label_candidates_dir / Path("gg_dev_test_candidates_resampling.tsv")), sep="\t"
+) >> ply.query("split==5")
+print(L_test.shape)
+L_test.head().T
 
 # ## Resort Based on the Candidate Abstracts
 
@@ -113,10 +119,12 @@ filtered_L_abstracts.head()
 # ## Construct the Grid Search
 
 # Global Grid
-epochs_grid = [100]
-l2_param_grid = [0.75]
+epochs_grid = [250]
+l2_param_grid = np.linspace(0.01, 5, num=5)
 lr_grid = [1e-3]
-grid = list(product(epochs_grid, l2_param_grid, lr_grid))
+grid = list(
+    zip(epochs_grid * len(l2_param_grid), l2_param_grid, lr_grid * len(l2_param_grid))
+)
 
 # # Abstracts
 
@@ -166,19 +174,18 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
+    grid_param=grid,
     marginals_df_file=str(
         notebook_output_dir / Path("gig_training_marginals_baseline.tsv")
     ),
     curated_label="curated_gig",
-    entity_label="GiG",
+    entity_label="GiG_baseline",
     data_source="abstract",
 )
 
@@ -207,17 +214,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("dag_predicts_gig_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_gig",
     entity_label="DaG",
     data_source="abstract",
@@ -248,17 +252,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("ctd_predicts_gig_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_gig",
     entity_label="CtD",
     data_source="abstract",
@@ -289,17 +290,14 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
-    marginals_df_file=str(
-        notebook_output_dir / Path("cbg_predicts_gig_training_marginals.tsv")
-    ),
+    grid_param=grid,
+    marginals_df_file="",
     curated_label="curated_gig",
     entity_label="CbG",
     data_source="abstract",
@@ -330,14 +328,13 @@ sampled_lfs_dict = {
     for sample_size in size_of_samples
 }
 
-data_columns += train_generative_label_function_sampler(
+data_columns += run_generative_label_function_sampler(
     filtered_L_abstracts,
     L_dev,
+    L_test,
     sampled_lfs_dict,
     lf_columns_base=lf_columns_base,
-    candidate_id_field=candidate_id_field,
-    dev_column_base=dev_column_base,
-    search_grid=grid,
+    grid_param=grid,
     marginals_df_file=str(
         notebook_output_dir / Path("gig_predicts_gig_training_marginals.tsv")
     ),
