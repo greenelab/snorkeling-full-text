@@ -1,7 +1,7 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py
+#     formats: ipynb,py:light
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -30,6 +30,15 @@ nlp = spacy.load("en_core_web_sm")
 
 
 def convert_dep_path(dataframe_row):
+    """
+    This function converts dependency paths generated from Stanford's Core NLP parser into
+    dependency paths generated from Spacy.
+    This project uses Spacy to parse sentences which is different from the parser used in this paper:
+    A global network of biomedical relationships derived from text
+
+    Args:
+        dataframe_row - the row from the pandas dataframe
+    """
     is_first_entity_first = int(
         dataframe_row["first_entity_location"].split(",")[1]
     ) < int(dataframe_row["second_entity_location"].split(",")[0])
@@ -84,6 +93,8 @@ def convert_dep_path(dataframe_row):
 
 # # Chemical-Disease
 
+# This section takes all dependency clusters designed for chemical and disease relationships and outputs them into a tab separated format. The dependency clusters are broken up into two files, one for the path groups and the other for the extract match of that path. This code here merges both.
+
 chemical_disease_url = "https://zenodo.org/record/1495808/files/part-i-chemical-disease-path-theme-distributions.txt.zip"
 chemical_disease_paths_url = "https://zenodo.org/record/1495808/files/part-ii-dependency-paths-chemical-disease-sorted-with-themes.txt.zip"
 
@@ -125,6 +136,8 @@ chemical_disease_merged_path_df.to_csv(
 )
 
 # # Chemical-Gene
+
+# This section takes all dependency clusters designed for chemical and gene relationships and outputs them into a tab separated format. The dependency clusters are broken up into two files, one for the path groups and the other for the extract match of that path. This code here merges both.
 
 chemical_gene_url = "https://zenodo.org/record/1495808/files/part-i-chemical-gene-path-theme-distributions.txt.zip"
 chemical_gene_paths_url = "https://zenodo.org/record/1495808/files/part-ii-dependency-paths-chemical-gene-sorted-with-themes.txt.zip"
@@ -168,6 +181,8 @@ chemical_gene_merged_path_df.to_csv(
 
 # # Disease-Gene
 
+# This section takes all dependency clusters designed for disease and gene relationships and outputs them into a tab separated format. The dependency clusters are broken up into two files, one for the path groups and the other for the extract match of that path. This code here merges both.
+
 disease_gene_url = "https://zenodo.org/record/1495808/files/part-i-gene-disease-path-theme-distributions.txt.zip"
 disease_gene_paths_url = "https://zenodo.org/record/1495808/files/part-ii-dependency-paths-gene-disease-sorted-with-themes.txt.zip"
 
@@ -209,6 +224,8 @@ disease_gene_merged_path_df.to_csv(
 )
 
 # # Gene-Gene
+
+# This section takes all dependency clusters designed for gene-gene relationships and outputs them into a tab separated format. The dependency clusters are broken up into two files, one for the path groups and the other for the extract match of that path. This code here merges both.
 
 gene_gene_url = "https://zenodo.org/record/1495808/files/part-i-gene-gene-path-theme-distributions.txt.zip"
 gene_gene_paths_url = "https://zenodo.org/record/1495808/files/part-ii-dependency-paths-gene-gene-sorted-with-themes.txt.zip"
