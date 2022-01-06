@@ -15,6 +15,8 @@
 
 # # Plot Label Resampling Performance
 
+# This notebook is designed to plot the performance of the generative model trained on random sampling of label functions. The performance data frame has a column lf_num which represents the amount of label functions sampled based on label source column.
+
 # +
 from pathlib import Path
 

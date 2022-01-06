@@ -199,6 +199,19 @@ data_columns += run_generative_label_function_sampler(
     data_source="abstract",
 )
 
+data_columns += run_generative_label_function_sampler(
+    filtered_L_full_text,
+    L_dev,
+    L_test,
+    sampled_lfs_dict,
+    lf_columns_base=lf_columns_base,
+    grid_param=grid,
+    marginals_df_file="",
+    curated_label="curated_ctd",
+    entity_label="CtD_baseline",
+    data_source="full_text",
+)
+
 # ## DaG
 
 # +
