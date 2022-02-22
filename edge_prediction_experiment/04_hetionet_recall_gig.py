@@ -44,49 +44,50 @@ database_str = (
 conn = create_engine(database_str)
 # -
 
-hetionet_dag_map_df = pd.read_csv(
+hetionet_gig_map_df = pd.read_csv(
     Path("../snorkeling_helper/label_functions/knowledge_bases")
-    / "disease_associates_gene.tsv.xz",
+    / "gene_interacts_gene.tsv.xz",
     sep="\t",
 )
-hetionet_dag_map_df >> ply.slice_rows(5)
+hetionet_gig_map_df >> ply.slice_rows(5)
 
 sentence_prediction_df = pd.read_csv(
-    "output/all_predicted_dag_sentences.tsv", sep="\t"
+    "output/all_predicted_gig_sentences.tsv", sep="\t"
 ) >> ply.arrange("candidate_id")
 sentence_prediction_df >> ply.slice_rows(5)
 
 sql = """
-select candidate_id, disease_cid as doid_id, gene_cid as entrez_gene_id
-from disease_gene inner join (
+select candidate_id, gene1_cid as gene1_id, gene2_cid as gene2_id
+from gene_gene inner join (
     select sentence_id, document_id
     from sentence
 ) as sentence_map
-on disease_gene.sentence_id = sentence_map.sentence_id
+on gene_gene.sentence_id = sentence_map.sentence_id
 where section = 'title' or section ='abstract'
 """
 candidate_to_sentence_map_df = (
     pd.read_sql(sql, conn)
-    >> ply_tdy.separate_rows("entrez_gene_id", sep=";")
-    >> ply.call(".astype", {"entrez_gene_id": int})
+    >> ply_tdy.separate_rows("gene1_id", sep=";")
+    >> ply_tdy.separate_rows("gene2_id", sep=";")
+    >> ply.call(".astype", {"gene1_id": int, "gene2_id": int})
 )
 candidate_to_sentence_map_df >> ply.slice_rows(5)
 
 # # Merge Predictions with Candidates and Hetionet Map
 
-all_dag_predictions_df = (
+all_gig_predictions_df = (
     sentence_prediction_df
     >> ply.inner_join(candidate_to_sentence_map_df, on="candidate_id")
     >> ply.inner_join(
-        hetionet_dag_map_df >> ply.select("-sources", "-n_sentences"),
-        on=["doid_id", "entrez_gene_id"],
+        hetionet_gig_map_df >> ply.select("-sources", "-n_sentences"),
+        on=["gene1_id", "gene2_id"],
     )
 )
-all_dag_predictions_df >> ply.slice_rows(5)
+all_gig_predictions_df >> ply.slice_rows(5)
 
-all_dag_df = (
-    all_dag_predictions_df
-    >> ply.group_by("doid_id", "entrez_gene_id")
+all_gig_df = (
+    all_gig_predictions_df
+    >> ply.group_by("gene1_id", "gene2_id")
     >> ply.define(
         pred_max="max(pred)", pred_mean="mean(pred)", pred_median="median(pred)"
     )
@@ -95,9 +96,9 @@ all_dag_df = (
     >> ply.ungroup()
     >> ply_tdy.gather("metric", "score", ["pred_max", "pred_mean", "pred_median"])
 )
-all_dag_df >> ply.slice_rows(10)
+all_gig_df >> ply.slice_rows(10)
 
-test_entity_df = all_dag_df >> ply.query("split == 2")
+test_entity_df = all_gig_df >> ply.query("split == 5")
 test_entity_df >> ply.slice_rows(5)
 
 # # Determine Precision and Recall
@@ -115,13 +116,16 @@ fpr, tpr, roc_threshold = roc_curve(
     test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
 )
 
-performance_map["PR"] = pd.DataFrame(
-    {
-        "precision": precision,
-        "recall": recall,
-        "pr_threshold": np.append(pr_threshold, 1),
-    }
-) >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+performance_map["PR"] = (
+    pd.DataFrame(
+        {
+            "precision": precision,
+            "recall": recall,
+            "pr_threshold": np.append(pr_threshold, 1),
+        }
+    )
+    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+)
 
 performance_map["AUROC"] = pd.DataFrame(
     {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
@@ -235,7 +239,7 @@ for idx, row in df_iterator.iterrows():
     cutoff = row["pr_threshold"]
 
     values_added = (
-        all_dag_df
+        all_gig_df
         >> ply.query("metric.str.contains('max')")
         >> ply.query("score >= @cutoff")
         >> ply.pull("hetionet")
@@ -270,6 +274,7 @@ g = (
     + p9.geom_point()
     + p9.theme_seaborn("white")
     + p9.scale_color_brewer(type="qual", palette=2)
+    + p9.scale_y_log10()
 )
 print(g)
 
@@ -278,27 +283,27 @@ edges_df = pd.DataFrame.from_records(
     [
         {
             "recall": (
-                all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                all_gig_df
+                >> ply.query("metric=='pred_max' & score > 0.05")
                 >> ply.pull("hetionet")
             ).sum()
-            / all_dag_df.query("hetionet == 1").shape[0],
+            / all_gig_df.query("hetionet == 1").shape[0],
             "edges": (
-                all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                all_gig_df
+                >> ply.query("metric=='pred_max' & score > 0.05")
                 >> ply.pull("hetionet")
             ).sum(),
             "in_hetionet": "Existing",
-            "relation": "DaG",
+            "relation": "GiG",
         },
         {
             "edges": (
-                all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                all_gig_df
+                >> ply.query("metric=='pred_max' & score > 0.05")
                 >> ply.query("hetionet==0")
             ).shape[0],
             "in_hetionet": "Novel",
-            "relation": "DaG",
+            "relation": "GiG",
         },
     ]
 )

@@ -111,13 +111,16 @@ fpr, tpr, roc_threshold = roc_curve(
     test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
 )
 
-performance_map["PR"] = pd.DataFrame(
-    {
-        "precision": precision,
-        "recall": recall,
-        "pr_threshold": np.append(pr_threshold, 1),
-    }
-) >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+performance_map["PR"] = (
+    pd.DataFrame(
+        {
+            "precision": precision,
+            "recall": recall,
+            "pr_threshold": np.append(pr_threshold, 1),
+        }
+    )
+    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+)
 
 performance_map["AUROC"] = pd.DataFrame(
     {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
