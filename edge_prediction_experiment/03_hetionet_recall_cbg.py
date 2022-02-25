@@ -13,7 +13,13 @@
 #     name: conda-env-snorkeling_full_text-py
 # ---
 
-# # Measure Disease associations Gene Edge Recall
+# # Measure Compound binds Gene Edge Recall
+
+# This notebook is designed to estimate how many hetionet edges can be recalled from this weakly supervised approach.
+# After the discriminator model has been trained, the last step is to predict whether every candidate sentence is mentions a compound binds gene relationship.
+# Following the predictions, the next step is to group each candidate sentence based on each candidate pair and take the max value of each group.
+# This max value represents the probability that an edge should or does exist.
+# Lastly, once each candidate has been scored I use the precision recall curve to estimate how many edges can be recovered from this method.
 
 # +
 # %load_ext autoreload
@@ -336,3 +342,8 @@ g = (
     )
 )
 print(g)
+
+# # Take home messages
+
+# 1. Recall is okay. Achieves 33% which is better than originally thought.
+# 2. If the discriminator model trained correctly I hypothesize that the recall would be a lot more higher.
