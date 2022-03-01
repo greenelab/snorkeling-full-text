@@ -288,7 +288,7 @@ edges_df = pd.DataFrame.from_records(
         {
             "recall": (
                 all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                >> ply.query("metric=='pred_max' & score > 0.5")  # precision 0.073798
                 >> ply.pull("hetionet")
             ).sum()
             / all_dag_df.query("hetionet == 1").shape[0],
