@@ -16,7 +16,7 @@
 # # Measure Disease associations Gene Edge Recall
 
 # This notebook is designed to estimate how many hetionet edges can be recalled from this weakly supervised approach.
-# After the discriminator model has been trained, the last step is to predict whether every candidate sentence is mentions a disease associates gene relationship.
+# After the discriminator model has been trained, the last step is to predict whether every candidate sentence mentions a disease associates gene relationship.
 # Following the predictions, the next step is to group each candidate sentence based on each candidate pair and take the max value of each group.
 # This max value represents the probability that an edge should or does exist.
 # Lastly, once each candidate has been scored I use the precision recall curve to estimate how many edges can be recovered from this method.
