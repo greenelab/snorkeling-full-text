@@ -44,6 +44,11 @@ color_map = {
     "ALL": mcolors.to_hex(color_names["light-green"]),
 }
 
+edge_color_map = {
+    "Existing": mcolors.to_hex(pd.np.array([178, 223, 138, 255]) / 255),
+    "Novel": mcolors.to_hex(pd.np.array([31, 120, 180, 255]) / 255),
+}
+
 # ## Figure 2 Generative Model - AUROC
 
 gen_model_performance_df = pd.read_csv(
@@ -78,10 +83,11 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUROC of Predicted Relations", color="Relation (LF) Source"
+        title="Test Set AUROC of Predicted Relations",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUROC",
     )
-    + p9.xlab("Number of Label Functions")
-    + p9.ylab("AUROC")
 )
 g.save("output/figure_two.svg")
 g.save("output/figure_two.png", dpi=300)
@@ -111,10 +117,11 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUPR of Predicted Relations", color="Relation (LF) Source"
+        title="Test Set AUPR of Predicted Relations",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUPR",
     )
-    + p9.xlab("Number of Label Functions")
-    + p9.ylab("AUPR")
 )
 g.save("output/figure_three.svg")
 g.save("output/figure_three.png", dpi=300)
@@ -171,37 +178,6 @@ g = (
     )
     + p9.aes(
         x="lf_num",
-        y="aupr_mean",
-        ymin="aupr_lower_ci",
-        ymax="aupr_upper_ci",
-        group="label_source",
-        color="label_source",
-    )
-    + p9.geom_point()
-    + p9.geom_line()
-    + p9.geom_errorbar()
-    + p9.facet_wrap("~ prediction_label")
-    + p9.theme_bw()
-    + p9.theme(figure_size=(8, 6))
-    + p9.scale_color_manual(values=color_map)
-    + p9.labs(
-        title="Test Set AUPR of Predicted Relations", color="Relation (LF) Source"
-    )
-    + p9.xlab("Number of Label Functions")
-    + p9.ylab("AUPR")
-)
-g.save("output/figure_four.svg")
-g.save("output/figure_four.png", dpi=300)
-print(g)
-
-g = (
-    p9.ggplot(
-        gen_model_performance_all_df
-        >> ply.query("label_source==prediction_label|label_source=='ALL'")
-        >> ply.query("model=='test'")
-    )
-    + p9.aes(
-        x="lf_num",
         y="auroc_mean",
         ymin="auroc_lower_ci",
         ymax="auroc_upper_ci",
@@ -216,10 +192,43 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUROC of Predicted Relations", color="Relation (LF) Source"
+        title="Test Set AUROC of Predicted Relations",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUROC",
     )
-    + p9.xlab("Number of Label Functions")
-    + p9.ylab("AUROC")
+)
+g.save("output/figure_four.svg")
+g.save("output/figure_four.png", dpi=300)
+print(g)
+
+g = (
+    p9.ggplot(
+        gen_model_performance_all_df
+        >> ply.query("label_source==prediction_label|label_source=='ALL'")
+        >> ply.query("model=='test'")
+    )
+    + p9.aes(
+        x="lf_num",
+        y="aupr_mean",
+        ymin="aupr_lower_ci",
+        ymax="aupr_upper_ci",
+        group="label_source",
+        color="label_source",
+    )
+    + p9.geom_point()
+    + p9.geom_line()
+    + p9.geom_errorbar()
+    + p9.facet_wrap("~ prediction_label")
+    + p9.theme_bw()
+    + p9.theme(figure_size=(8, 6))
+    + p9.scale_color_manual(values=color_map)
+    + p9.labs(
+        title="Test Set AUPR of Predicted Relations",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUPR",
+    )
 )
 g.save("output/figure_five.svg")
 g.save("output/figure_five.png", dpi=300)
@@ -255,7 +264,13 @@ g = (
     + p9.scale_color_manual(values=color_map)
     + p9.facet_wrap("~ prediction_label")
     + p9.theme_bw()
-    + p9.labs(title="Test Set (AUROC)")
+    + p9.labs(
+        title="Test Set (AUROC)",
+        linetype="Model",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUROC",
+    )
     + p9.theme(figure_size=(8, 6))
 )
 g.save("output/figure_six.svg")
@@ -279,7 +294,13 @@ g = (
     + p9.scale_color_manual(values=color_map)
     + p9.facet_wrap("~ prediction_label")
     + p9.theme_bw()
-    + p9.labs(title="Test Set (AUPR)")
+    + p9.labs(
+        title="Test Set (AUPR)",
+        linetype="Model",
+        color="Relation (LF) Source",
+        x="Number of Label Functions Added",
+        y="AUPR",
+    )
     + p9.theme(figure_size=(8, 6))
 )
 g.save("output/figure_seven.svg")
@@ -309,7 +330,7 @@ g = (
         p9.aes(
             label=(
                 edge_recall_df.apply(
-                    lambda x: f"{x['edges']:,} ({x['recall']:.0%})"
+                    lambda x: f"{x['edges']:,}\n({x['recall']:.0%})"
                     if not math.isnan(x["recall"])
                     else f"{x['edges']:,}",
                     axis=1,
@@ -317,10 +338,11 @@ g = (
             )
         ),
         position=p9.position_dodge(width=1),
-        size=7,
+        size=11,
         va="bottom",
     )
     + p9.scale_y_log10()
+    + p9.scale_fill_manual(values=edge_color_map)
     + p9.theme_seaborn("white")
     + p9.theme(
         axis_text_y=p9.element_blank(),
@@ -330,7 +352,12 @@ g = (
         axis_line=p9.element_blank(),
         figure_size=(8, 6),
     )
-    + p9.labs(title="Hetionet Edge Recall", fill="In Hetionet")
+    + p9.labs(
+        title="Hetionet Edge Recall",
+        fill="In Hetionet",
+        x="Relation Type",
+        y="Number of Edges",
+    )
 )
 g.save("output/figure_eight.svg")
 g.save("output/figure_eight.png", dpi=300)
