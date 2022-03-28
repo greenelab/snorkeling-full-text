@@ -74,8 +74,8 @@ g = (
     + p9.geom_line()
     + p9.geom_errorbar()
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
-    + p9.theme(figure_size=(10, 10), text=p9.element_text(size=12))
+    + p9.theme_bw()
+    + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
         title="Test Set AUROC of Predicted Relations", color="Relation (LF) Source"
@@ -107,8 +107,8 @@ g = (
     + p9.geom_line()
     + p9.geom_errorbar()
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
-    + p9.theme(figure_size=(10, 10), text=p9.element_text(size=12))
+    + p9.theme_bw()
+    + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
         title="Test Set AUPR of Predicted Relations", color="Relation (LF) Source"
@@ -181,8 +181,8 @@ g = (
     + p9.geom_line()
     + p9.geom_errorbar()
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
-    + p9.theme(figure_size=(10, 10), text=p9.element_text(size=12))
+    + p9.theme_bw()
+    + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
         title="Test Set AUPR of Predicted Relations", color="Relation (LF) Source"
@@ -212,8 +212,8 @@ g = (
     + p9.geom_line()
     + p9.geom_errorbar()
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
-    + p9.theme(figure_size=(10, 10), text=p9.element_text(size=12))
+    + p9.theme_bw()
+    + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
         title="Test Set AUROC of Predicted Relations", color="Relation (LF) Source"
@@ -254,9 +254,9 @@ g = (
     + p9.geom_errorbar()
     + p9.scale_color_manual(values=color_map)
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
+    + p9.theme_bw()
     + p9.labs(title="Test Set (AUROC)")
-    + p9.theme(figure_size=(10, 10))
+    + p9.theme(figure_size=(8, 6))
 )
 g.save("output/figure_six.svg")
 g.save("output/figure_six.png", dpi=300)
@@ -278,9 +278,9 @@ g = (
     + p9.geom_errorbar()
     + p9.scale_color_manual(values=color_map)
     + p9.facet_wrap("~ prediction_label")
-    + p9.theme_seaborn("white")
+    + p9.theme_bw()
     + p9.labs(title="Test Set (AUPR)")
-    + p9.theme(figure_size=(10, 10))
+    + p9.theme(figure_size=(8, 6))
 )
 g.save("output/figure_seven.svg")
 g.save("output/figure_seven.png", dpi=300)
@@ -328,6 +328,7 @@ g = (
         axis_ticks_minor=p9.element_blank(),
         rect=p9.element_blank(),
         axis_line=p9.element_blank(),
+        figure_size=(8, 6),
     )
     + p9.labs(title="Hetionet Edge Recall", fill="In Hetionet")
 )
