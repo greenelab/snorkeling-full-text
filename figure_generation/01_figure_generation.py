@@ -83,7 +83,7 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUROC of Predicted Relations",
+        title="Generative Model Performance for Predicted Relations (Test Set/AUROC)",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
         y="AUROC",
@@ -117,7 +117,7 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUPR of Predicted Relations",
+        title="Generative Model Performance for Predicted Relations (Test Set/AUPR)",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
         y="AUPR",
@@ -192,7 +192,7 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUROC of Predicted Relations",
+        title="Generative Model Performance using All Label Functions (Test Set/AUROC)",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
         y="AUROC",
@@ -224,7 +224,7 @@ g = (
     + p9.theme(figure_size=(8, 6))
     + p9.scale_color_manual(values=color_map)
     + p9.labs(
-        title="Test Set AUPR of Predicted Relations",
+        title="Generative Model Performance using All Label Functions (Test Set/AUPR)",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
         y="AUPR",
@@ -265,7 +265,7 @@ g = (
     + p9.facet_wrap("~ prediction_label")
     + p9.theme_bw()
     + p9.labs(
-        title="Test Set (AUROC)",
+        title="Discriminative Model Performance (Test Set/AUROC)",
         linetype="Model",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
@@ -295,7 +295,7 @@ g = (
     + p9.facet_wrap("~ prediction_label")
     + p9.theme_bw()
     + p9.labs(
-        title="Test Set (AUPR)",
+        title="Discriminative Model Performance (Test Set/AUPR)",
         linetype="Model",
         color="Relation (LF) Source",
         x="Number of Label Functions Added",
