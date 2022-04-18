@@ -312,7 +312,7 @@ print(g)
 edge_recall_df = (
     pd.concat(
         [
-            pd.read_csv(recall_file_path, sep="\t", index_col=0)
+            pd.read_csv(recall_file_path, sep="\t")
             for recall_file_path in Path("../edge_prediction_experiment/output/").rglob(
                 "*edge_recall.tsv"
             )
