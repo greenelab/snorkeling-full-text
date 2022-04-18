@@ -282,19 +282,26 @@ g = (
 )
 print(g)
 
+fpr, tpr, roc_threshold = roc_curve(
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
+)
+cutoff_score = roc_threshold[np.argmax(tpr - fpr)]
+print(cutoff_score)
+
 # +
 edges_df = pd.DataFrame.from_records(
     [
         {
             "recall": (
                 all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")  # precision 0.073798
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum()
             / all_dag_df.query("hetionet == 1").shape[0],
             "edges": (
                 all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum(),
             "in_hetionet": "Existing",
@@ -303,7 +310,7 @@ edges_df = pd.DataFrame.from_records(
         {
             "edges": (
                 all_dag_df
-                >> ply.query("metric=='pred_max' & score > 0.5")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.query("hetionet==0")
             ).shape[0],
             "in_hetionet": "Novel",
@@ -312,6 +319,7 @@ edges_df = pd.DataFrame.from_records(
     ]
 )
 
+edges_df >> ply.call(".to_csv", "output/DaG_edge_recall.tsv", sep="\t", index=False)
 edges_df
 # -
 
@@ -344,5 +352,5 @@ print(g)
 
 # # Take home messages
 
-# 1. Recall is okay. Achieves 33% which is better than originally thought.
+# 1. Recall is okay. Achieves 21% which is better than originally thought.
 # 2. If the discriminator model trained correctly I hypothesize that the recall would be a lot more higher.
