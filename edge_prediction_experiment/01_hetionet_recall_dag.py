@@ -112,32 +112,6 @@ performance_map = dict()
 
 # +
 precision, recall, pr_threshold = precision_recall_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
-
-fpr, tpr, roc_threshold = roc_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
-
-performance_map["PR"] = (
-    pd.DataFrame(
-        {
-            "precision": precision,
-            "recall": recall,
-            "pr_threshold": np.append(pr_threshold, 1),
-        }
-    )
-    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
-)
-
-performance_map["AUROC"] = pd.DataFrame(
-    {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
-) >> ply.define(model=f'"pred_max/AUC={auc(fpr, tpr):.2f}"')
-
-# +
-precision, recall, pr_threshold = precision_recall_curve(
     test_entity_df >> ply.query("metric=='pred_mean'") >> ply.pull("hetionet"),
     test_entity_df >> ply.query("metric=='pred_mean'") >> ply.pull("score"),
 )
@@ -189,6 +163,32 @@ performance_map["AUROC"] = performance_map["AUROC"].append(
     pd.DataFrame({"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold})
     >> ply.define(model=f'"pred_median/AUC={auc(fpr, tpr):.2f}"')
 )
+
+# +
+precision, recall, pr_threshold = precision_recall_curve(
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
+)
+
+fpr, tpr, roc_threshold = roc_curve(
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
+)
+
+performance_map["PR"] = (
+    pd.DataFrame(
+        {
+            "precision": precision,
+            "recall": recall,
+            "pr_threshold": np.append(pr_threshold, 1),
+        }
+    )
+    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+)
+
+performance_map["AUROC"] = pd.DataFrame(
+    {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
+) >> ply.define(model=f'"pred_max/AUC={auc(fpr, tpr):.2f}"')
 # -
 
 g = (
@@ -282,10 +282,6 @@ g = (
 )
 print(g)
 
-fpr, tpr, roc_threshold = roc_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
 cutoff_score = roc_threshold[np.argmax(tpr - fpr)]
 print(cutoff_score)
 

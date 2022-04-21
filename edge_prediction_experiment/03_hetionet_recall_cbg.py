@@ -283,10 +283,6 @@ g = (
 )
 print(g)
 
-fpr, tpr, roc_threshold = roc_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
 cutoff_score = roc_threshold[np.argmax(tpr - fpr)]
 print(cutoff_score)
 
