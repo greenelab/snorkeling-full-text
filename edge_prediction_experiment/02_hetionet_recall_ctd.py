@@ -108,32 +108,6 @@ performance_map = dict()
 
 # +
 precision, recall, pr_threshold = precision_recall_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
-
-fpr, tpr, roc_threshold = roc_curve(
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
-    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
-)
-
-performance_map["PR"] = (
-    pd.DataFrame(
-        {
-            "precision": precision,
-            "recall": recall,
-            "pr_threshold": np.append(pr_threshold, 1),
-        }
-    )
-    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
-)
-
-performance_map["AUROC"] = pd.DataFrame(
-    {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
-) >> ply.define(model=f'"pred_max/AUC={auc(fpr, tpr):.2f}"')
-
-# +
-precision, recall, pr_threshold = precision_recall_curve(
     test_entity_df >> ply.query("metric=='pred_mean'") >> ply.pull("hetionet"),
     test_entity_df >> ply.query("metric=='pred_mean'") >> ply.pull("score"),
 )
@@ -185,6 +159,32 @@ performance_map["AUROC"] = performance_map["AUROC"].append(
     pd.DataFrame({"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold})
     >> ply.define(model=f'"pred_median/AUC={auc(fpr, tpr):.2f}"')
 )
+
+# +
+precision, recall, pr_threshold = precision_recall_curve(
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
+)
+
+fpr, tpr, roc_threshold = roc_curve(
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("hetionet"),
+    test_entity_df >> ply.query("metric=='pred_max'") >> ply.pull("score"),
+)
+
+performance_map["PR"] = (
+    pd.DataFrame(
+        {
+            "precision": precision,
+            "recall": recall,
+            "pr_threshold": np.append(pr_threshold, 1),
+        }
+    )
+    >> ply.define(model=f'"pred_max/AUC={auc(recall, precision):.2f}"')
+)
+
+performance_map["AUROC"] = pd.DataFrame(
+    {"fpr": fpr, "tpr": tpr, "roc_threshold": roc_threshold}
+) >> ply.define(model=f'"pred_max/AUC={auc(fpr, tpr):.2f}"')
 # -
 
 g = (
@@ -279,19 +279,22 @@ g = (
 )
 print(g)
 
+cutoff_score = roc_threshold[np.argmax(tpr - fpr)]
+print(cutoff_score)
+
 # +
 edges_df = pd.DataFrame.from_records(
     [
         {
             "recall": (
                 all_ctd_df
-                >> ply.query("metric=='pred_max' & score > 0.4")  # precision 0.092896
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum()
             / all_ctd_df.query("hetionet == 1").shape[0],
             "edges": (
                 all_ctd_df
-                >> ply.query("metric=='pred_max' & score > 0.4")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum(),
             "in_hetionet": "Existing",
@@ -300,7 +303,7 @@ edges_df = pd.DataFrame.from_records(
         {
             "edges": (
                 all_ctd_df
-                >> ply.query("metric=='pred_max' & score > 0.4")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.query("hetionet==0")
             ).shape[0],
             "in_hetionet": "Novel",
@@ -309,6 +312,7 @@ edges_df = pd.DataFrame.from_records(
     ]
 )
 
+edges_df >> ply.call(".to_csv", "output/CtD_edge_recall.tsv", sep="\t", index=False)
 edges_df
 # -
 
@@ -341,5 +345,5 @@ print(g)
 
 # # Take home messages
 
-# 1. Recall is okay. Achieves 32% which is better than originally thought.
+# 1. Recall is okay. Achieves 30% which is better than originally thought.
 # 2. If the discriminator model trained correctly I hypothesize that the recall would be a lot more higher.

@@ -283,19 +283,22 @@ g = (
 )
 print(g)
 
+cutoff_score = roc_threshold[np.argmax(tpr - fpr)]
+print(cutoff_score)
+
 # +
 edges_df = pd.DataFrame.from_records(
     [
         {
             "recall": (
                 all_cbg_df
-                >> ply.query("metric=='pred_max' & score > 0.05")  # precision 0.032036
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum()
             / all_cbg_df.query("hetionet == 1").shape[0],
             "edges": (
                 all_cbg_df
-                >> ply.query("metric=='pred_max' & score > 0.05")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.pull("hetionet")
             ).sum(),
             "in_hetionet": "Existing",
@@ -304,7 +307,7 @@ edges_df = pd.DataFrame.from_records(
         {
             "edges": (
                 all_cbg_df
-                >> ply.query("metric=='pred_max' & score > 0.05")
+                >> ply.query("metric=='pred_max' & score > @cutoff_score")
                 >> ply.query("hetionet==0")
             ).shape[0],
             "in_hetionet": "Novel",
