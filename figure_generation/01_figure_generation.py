@@ -309,18 +309,16 @@ print(g)
 
 # # Edge Prediction
 
-edge_recall_df = (
-    pd.concat(
-        [
-            pd.read_csv(recall_file_path, sep="\t")
-            for recall_file_path in Path("../edge_prediction_experiment/output/").rglob(
-                "*edge_recall.tsv"
-            )
-        ]
-    )
-    >> ply.call(".reset_index")
-    >> ply.select("-index")
-)
+edge_recall_df = pd.concat(
+    [
+        pd.read_csv(recall_file_path, sep="\t")
+        for recall_file_path in Path("../edge_prediction_experiment/output/").rglob(
+            "*edge_recall.tsv"
+        )
+    ]
+) >> ply.select(
+    "-Unnamed: 0"
+)  # Drop extraneous column
 edge_recall_df
 
 g = (
