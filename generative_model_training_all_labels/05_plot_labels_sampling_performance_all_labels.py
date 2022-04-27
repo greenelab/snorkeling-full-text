@@ -26,6 +26,9 @@ import plydata as ply
 
 # ## Gather performance dataset files and manipulate the dataframes
 
+# These label function cutoffs are choosen to have evenly spaced
+# sample sizes where 32 appears to be a sizeable amount to notice a difference
+# and have quick run time
 performance_dfs = pd.concat(
     [
         pd.read_csv(str(df_path), sep="\t")
@@ -156,7 +159,6 @@ g = (
         ymin="aupr_lower_ci",
         ymax="aupr_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
@@ -176,7 +178,6 @@ g = (
         ymin="auroc_lower_ci",
         ymax="auroc_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
@@ -196,7 +197,6 @@ g = (
         ymin="bce_lower_ci",
         ymax="bce_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
@@ -218,7 +218,6 @@ g = (
         ymin="aupr_lower_ci",
         ymax="aupr_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
@@ -238,7 +237,6 @@ g = (
         ymin="auroc_lower_ci",
         ymax="auroc_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
@@ -258,7 +256,6 @@ g = (
         ymin="bce_lower_ci",
         ymax="bce_upper_ci",
         group="label_source",
-        color="label_source",
     )
     + p9.geom_point()
     + p9.geom_line()
